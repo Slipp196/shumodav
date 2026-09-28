@@ -21,6 +21,8 @@
       errRoom: 'Введи название комнаты',
       errMic: 'Нет доступа к микрофону. Разреши доступ в браузере.',
       errHttps: 'Для работы нужен HTTPS (или localhost).',
+      enableAudio: '🔊 Включить звук',
+      audioOn: 'Звук включён',
     },
     uk: {
       appTitle: 'Шумодав',
@@ -40,6 +42,8 @@
       errRoom: 'Введи назву кімнати',
       errMic: 'Немає доступу до мікрофона. Дозволь доступ у браузері.',
       errHttps: 'Для роботи потрібен HTTPS (або localhost).',
+      enableAudio: '🔊 Увімкнути звук',
+      audioOn: 'Звук увімкнено',
     }
   };
 
@@ -58,6 +62,7 @@
   let pendingJoin = null;
   let muted = false;
   let deafened = false;
+  let audioUnlocked = false;
 
   const users = new Map();
   const peers = new Map();
@@ -207,6 +212,26 @@
     deafBtn.textContent = deafened ? '🔕' : '🎧';
     deafBtn.title = deafened ? t('deafOff') : t('deafOn');
     deafBtn.classList.toggle('off', deafened);
+
+    // Кнопка разблокировки звука
+    const audioBtn = $('audioUnlockBtn');
+    if (audioBtn) {
+      audioBtn.style.display = audioUnlocked ? 'none' : 'block';
+    }
+  }
+
+  function unlockAudio() {
+    audioUnlocked = true;
+    // Проходим по всем аудио-элементам и пробуем включить
+    document.querySelectorAll('audio').forEach(a => {
+      a.muted = deafened;
+      a.play().catch(err => console.warn('audio play error', err));
+    });
+    // Разблокируем AudioContext (для анализатора)
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+    updateButtons();
   }
 
   function setMuted(v) {
@@ -275,7 +300,7 @@
   function createPeer(id, initiator) {
     if (peers.has(id)) return peers.get(id);
 
-    // ВАЖНО: iceTransportPolicy 'relay' — заставляет идти через TURN, работает без VPN
+    // iceTransportPolicy: 'relay' — идём через TURN, работает без VPN
     const pc = new RTCPeerConnection({
       ...RTC_CONFIG,
       iceTransportPolicy: 'relay'
@@ -303,7 +328,10 @@
     pc.ontrack = (e) => {
       const stream = e.streams[0];
       audio.srcObject = stream;
-      audio.play().catch(() => {});
+      // Если аудио уже разблокировано, пробуем играть; иначе подождём клика
+      if (audioUnlocked) {
+        audio.play().catch(err => console.warn('play error', err));
+      }
       try {
         if (audioCtx && stream) {
           const src = audioCtx.createMediaStreamSource(stream);
@@ -522,4 +550,11 @@
   $('roomInput').value = myRoom;
   refreshAvatarPreview();
   applyLang();
+
+  // Обработчик кнопки разблокировки звука
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'audioUnlockBtn') {
+      unlockAudio();
+    }
+  });
 })();
