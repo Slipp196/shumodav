@@ -9,7 +9,6 @@ const io = new Server(server, { maxHttpBufferSize: 1e6 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// room -> Map(socketId -> { nick, avatar, muted, deafened })
 const rooms = new Map();
 
 io.on('connection', (socket) => {
@@ -29,7 +28,6 @@ io.on('connection', (socket) => {
       deafened: false
     };
 
-    // отправляем новому список уже сидящих
     const existing = [...roomMap.entries()].map(([id, u]) => ({ id, ...u }));
     socket.emit('existing-users', existing);
 
@@ -38,13 +36,11 @@ io.on('connection', (socket) => {
     socket.to(currentRoom).emit('user-joined', { id: socket.id, ...me });
   });
 
-  // пересылка WebRTC-сигналов
   socket.on('signal', ({ to, data }) => {
     if (!to || !data) return;
     io.to(to).emit('signal', { from: socket.id, data });
   });
 
-  // обновление состояния (мут / деф)
   socket.on('update-state', (state) => {
     if (!currentRoom || !rooms.has(currentRoom)) return;
     const u = rooms.get(currentRoom).get(socket.id);
