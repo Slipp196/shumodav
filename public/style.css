@@ -159,6 +159,15 @@ button.danger  { background: var(--danger); }
 }
 .ctrl.off { background: var(--danger); }
 .ctrl.danger { background: var(--danger); }
+.ctrl.audio-unlock {
+  background: var(--accent);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(88, 101, 242, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0); }
+}
 
 @media (max-width: 640px) {
   .sidebar { width: 180px; flex: 0 0 180px; }
