@@ -243,9 +243,31 @@
   /* ---------- WebRTC ---------- */
   const RTC_CONFIG = {
     iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+      {
+        urls: 'stun:stun.relay.metered.ca:80'
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:80',
+        username: 'ab1131c51e273b586f61112f',
+        credential: 'uxY8WP4xW3GrRro'
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+        username: 'ab1131c51e273b586f61112f',
+        credential: 'uxY8WP4xW3GrRro'
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:443',
+        username: 'ab1131c51e273b586f61112f',
+        credential: 'uxY8WP4xW3GrRro'
+      },
+      {
+        urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+        username: 'ab1131c51e273b586f61112f',
+        credential: 'uxY8WP4xW3GrRro'
+      }
+    ],
+    iceCandidatePoolSize: 10
   };
 
   function createPeer(id, initiator) {
