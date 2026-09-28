@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Шумодав</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ЭКРАН ВХОДА -->
+<div id="login" class="screen">
+  <div class="card">
+    <h1 id="appTitle">Шумодав</h1>
+    <p class="sub" id="appSub"></p>
+
+    <label class="avatar-pick">
+      <input type="file" id="avatarInput" accept="image/*" hidden>
+      <div id="avatarPreview" class="avatar big"></div>
+      <span id="avatarLabel"></span>
+    </label>
+
+    <input id="nickInput" maxlength="24" autocomplete="off" spellcheck="false">
+    <input id="roomInput" maxlength="40" autocomplete="off" spellcheck="false" value="general">
+    <button id="joinBtn" class="primary"></button>
+
+    <div class="langs">
+      <button class="lang" data-lang="ru">RU</button>
+      <button class="lang" data-lang="uk">UK</button>
+    </div>
+
+    <div id="loginError" class="error"></div>
+  </div>
+</div>
+
+<!-- ОСНОВНОЙ ЭКРАН -->
+<div id="app" class="screen hidden">
+  <aside class="sidebar">
+    <div class="room-name" id="roomName"></div>
+    <div class="label" id="participantsLabel"></div>
+    <ul id="users"></ul>
+  </aside>
+  <main class="main">
+    <div class="controls">
+      <button id="micBtn" class="ctrl"></button>
+      <button id="deafBtn" class="ctrl"></button>
+      <button id="leaveBtn" class="ctrl danger"></button>
+    </div>
+  </main>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
+</body>
+</html>
