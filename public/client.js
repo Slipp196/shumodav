@@ -59,13 +59,44 @@
   let muted = false;
   let deafened = false;
 
-  const users = new Map();     // id -> {nick, avatar, muted, deafened}
-  const peers = new Map();     // id -> {pc, audio, analyser}
-  const userEls = new Map();   // id -> <li>
+  const users = new Map();
+  const peers = new Map();
+  const userEls = new Map();
   const remoteAnalysers = new Map();
   const speakingNow = new Set();
   let localAnalyser = null;
   let audioCtx = null;
+
+  /* ---------- WebRTC config с TURN (Metered) ---------- */
+  const RTC_CONFIG = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls: 'stun:stun.relay.metered.ca:80'
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:80',
+        username: 'ab1131c51e273b586f61112f',
+        credential: 'uxY8WP4xW3GrRro'
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+        username: 'ab1131c51e273b586f61112f',
+        credential: 'uxY8WP4xW3GrRro'
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:443',
+        username: 'ab1131c51e273b586f61112f',
+        credential: 'uxY8WP4xW3GrRro'
+      },
+      {
+        urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+        username: 'ab1131c51e273b586f61112f',
+        credential: 'uxY8WP4xW3GrRro'
+      }
+    ],
+    iceCandidatePoolSize: 10
+  };
 
   /* ---------- helpers ---------- */
   function colorFrom(str) {
@@ -108,7 +139,7 @@
     });
   }
 
-  /* ---------- UI: язык ---------- */
+  /* ---------- i18n UI ---------- */
   function applyLang() {
     document.documentElement.lang = lang;
     document.title = t('appTitle');
@@ -135,7 +166,7 @@
     });
   });
 
-  /* ---------- UI: аватар в логине ---------- */
+  /* ---------- аватар ---------- */
   function refreshAvatarPreview() {
     const box = $('avatarPreview');
     box.innerHTML = '';
@@ -165,7 +196,7 @@
     refreshAvatarPreview();
   });
 
-  /* ---------- кнопки микро/дефа ---------- */
+  /* ---------- кнопки ---------- */
   function updateButtons() {
     const micBtn = $('micBtn');
     const deafBtn = $('deafBtn');
@@ -200,7 +231,7 @@
   $('deafBtn').addEventListener('click', () => setDeafened(!deafened));
   $('leaveBtn').addEventListener('click', () => location.reload());
 
-  /* ---------- список участников ---------- */
+  /* ---------- список ---------- */
   function renderUsers() {
     const ul = $('users');
     ul.innerHTML = '';
@@ -241,39 +272,14 @@
   }
 
   /* ---------- WebRTC ---------- */
-  const RTC_CONFIG = {
-    iceServers: [
-      {
-        urls: 'stun:stun.relay.metered.ca:80'
-      },
-      {
-        urls: 'turn:global.relay.metered.ca:80',
-        username: 'ab1131c51e273b586f61112f',
-        credential: 'uxY8WP4xW3GrRro'
-      },
-      {
-        urls: 'turn:global.relay.metered.ca:80?transport=tcp',
-        username: 'ab1131c51e273b586f61112f',
-        credential: 'uxY8WP4xW3GrRro'
-      },
-      {
-        urls: 'turn:global.relay.metered.ca:443',
-        username: 'ab1131c51e273b586f61112f',
-        credential: 'uxY8WP4xW3GrRro'
-      },
-      {
-        urls: 'turns:global.relay.metered.ca:443?transport=tcp',
-        username: 'ab1131c51e273b586f61112f',
-        credential: 'uxY8WP4xW3GrRro'
-      }
-    ],
-    iceCandidatePoolSize: 10
-  };
-
   function createPeer(id, initiator) {
     if (peers.has(id)) return peers.get(id);
 
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+    // ВАЖНО: iceTransportPolicy 'relay' — заставляет идти через TURN, работает без VPN
+    const pc = new RTCPeerConnection({
+      ...RTC_CONFIG,
+      iceTransportPolicy: 'relay'
+    });
 
     const audio = document.createElement('audio');
     audio.autoplay = true;
@@ -311,8 +317,8 @@
     };
 
     pc.onconnectionstatechange = () => {
-      if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
-        if (pc.connectionState !== 'disconnected') removePeer(id);
+      if (['failed', 'closed'].includes(pc.connectionState)) {
+        removePeer(id);
       }
     };
 
@@ -381,14 +387,13 @@
     list.forEach(u => {
       users.set(u.id, { nick: u.nick, avatar: u.avatar, muted: !!u.muted, deafened: !!u.deafened });
       renderUsers();
-      createPeer(u.id, true);   // мы инициируем к тем, кто уже сидит
+      createPeer(u.id, true);
     });
   });
 
   socket.on('user-joined', (u) => {
     users.set(u.id, { nick: u.nick, avatar: u.avatar, muted: !!u.muted, deafened: !!u.deafened });
     renderUsers();
-    // offer придёт от них
   });
 
   socket.on('user-state', ({ id, ...state }) => {
@@ -419,7 +424,6 @@
 
   function tick() {
     requestAnimationFrame(tick);
-
     const now = new Set();
 
     if (localAnalyser && !muted) {
@@ -432,7 +436,6 @@
       if (avgLevel(an) > 12) now.add(id);
     });
 
-    // обновляем только изменившиеся
     now.forEach(id => {
       if (!speakingNow.has(id)) {
         speakingNow.add(id);
@@ -487,7 +490,6 @@
       return;
     }
 
-    // анализ своего микрофона
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') await audioCtx.resume();
@@ -495,7 +497,7 @@
       localAnalyser = audioCtx.createAnalyser();
       localAnalyser.fftSize = 512;
       src.connect(localAnalyser);
-    } catch (e) { /* без индикатора, но работаем */ }
+    } catch (e) { /* ignore */ }
 
     localStorage.setItem('nick', myNick);
     localStorage.setItem('room', myRoom);
@@ -506,7 +508,7 @@
       socket.emit('join', payload);
       showApp();
     } else {
-      pendingJoin = payload;   // ждём connect
+      pendingJoin = payload;
     }
 
     tick();
